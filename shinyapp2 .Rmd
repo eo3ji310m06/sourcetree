@@ -1,0 +1,246 @@
+---
+title: "APP"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    social: menu
+    source_code: embed
+    # css: shinyapp_bright.css
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(readxl,dplyr,stringr,showtext,units,shiny,shinyWidgets,GGally,flexdashboard,plotly,ggpubr,plotly)
+library(showtext)
+
+##mac 顯示中文
+par(family='STKaiti')
+showtext_auto(enable = TRUE)
+##########################################################################################################
+load("shinny.rdata")
+##########################################################################################################
+metro = c("臺北市","新北市","桃園市","臺中市","臺南市","高雄市")
+east = c("花蓮縣","臺東縣")
+middle = c("臺中市","苗栗縣","彰化縣",'南投縣',"雲林縣")
+north = c("臺北市","新北市","基隆市","新竹市","桃園市","新竹縣","宜蘭縣")
+south = c("高雄市","臺南市","嘉義市","嘉義縣","屏東縣","澎湖縣")
+island = c("金門縣","連江縣")
+taiwan = c("花蓮縣","臺東縣","臺中市","苗栗縣","彰化縣",'南投縣',"雲林縣","臺北市","新北市","基隆市","新竹市","桃園市","新竹縣","宜蘭縣","高雄市","臺南市","嘉義市","嘉義縣","屏東縣","澎湖縣","金門縣","連江縣")
+##########################################################################################################
+
+ratio <- c("扶養比","老化指數","扶幼比","扶老比" )
+stat <- c("總人口數","死亡率","出生率", "性別比" )
+index <- c("死亡率","出生率", "性別比" )
+
+
+```
+
+社會綜合指標圖 {data-icon="fa-share-alt"}
+=====================================================
+
+```{r global,echo=FALSE}
+plot_ggpairs = function(df,x,y,z) {
+  plot =NULL
+  if (z != '兩樣就好'){
+   plot = highlight(ggplotly(ggpairs( highlight_key(df),
+    c(x,y,z,"縣市名稱"), mapping = aes(color=縣市名稱,label=鄉鎮市區名稱),
+    diag = list(continuous=wrap("densityDiag", alpha = 0.7, col='gray')) 
+  ) ),on = "plotly_selected")
+    
+  }else{
+   plot = highlight(ggplotly(ggpairs( highlight_key(df),
+    c(x,y,"縣市名稱"), mapping = aes(color=縣市名稱,label=鄉鎮市區名稱),
+    diag = list(continuous=wrap("densityDiag", alpha = 0.7, col='gray')) 
+  ) ),on = "plotly_selected")
+  }
+  return(plot)
+}
+
+
+
+#########################################################################
+plot = function(df,X,Y,Z,N) {
+    ggplotly(
+      ggplot(df,aes(x=X,y=Y,color = Z)) +
+        geom_line()+
+        geom_point(shape=21, size=3) +
+        ggtitle(paste0(N,"折線圖"))
+    )
+}
+
+```
+
+<div class ='container'>
+<div class = 'index-input-layer'>
+```{r echo=FALSE}
+
+selectInput('column0.5',label='選擇區域:',choices = c("直轄市","東部","北部","南部","中部","離島"),selected = '直轄市')
+
+selectInput('column2',label = '選擇年份',choices = c("104年","105年","106年","107年","108年","109年"),selected = "104年")
+
+selectInput('column3',label='第一欄位:',choices = list("人口統計指標"=stat,"各項人口比率"=ratio),selected = stat[1] )
+
+
+selectInput('column4',label='第二欄位:',choices = list("人口統計指標"=stat,"各項人口比率"=ratio),selected = stat[2] )
+
+
+selectInput('column5',label='第三欄位:',choices = list('兩樣就好',"人口統計指標"=stat,"各項人口比率"=ratio),selected = stat[3])
+
+
+```
+</div>
+</div>
+
+<div class = 'index-output-layer'>
+```{r echo = FALSE}
+
+select_vill = reactive(switch (input$column0.5,
+  "直轄市" = select_vill_metro,
+  "東部" = select_vill_east,
+  "北部" = select_vill_north,
+  "南部" = select_vill_sourth,
+  "中部" = select_vill_middle,
+  "離島" = select_vill_island))
+
+
+renderPlotly({
+  
+  switch(input$column2,
+         "104年"=plot_ggpairs(select_vill()[[1]],input$column3,input$column4,input$column5),
+         "105年"=plot_ggpairs(select_vill()[[2]],input$column3,input$column4,input$column5),
+         "106年"=plot_ggpairs(select_vill()[[3]],input$column3,input$column4,input$column5),
+         "107年"=plot_ggpairs(select_vill()[[4]],input$column3,input$column4,input$column5),
+         "108年"=plot_ggpairs(select_vill()[[5]],input$column3,input$column4,input$column5),
+         "109年"=plot_ggpairs(select_vill()[[6]],input$column3,input$column4,input$column5))
+})
+
+
+```
+</div>
+
+
+指標折線圖 {data-icon="fa-share-alt"}
+=====================================================
+
+
+
+<div class = 'panel2-input-layer'>
+    
+```{r echo=FALSE}
+
+selectInput('panel2_area',label='選擇區域:',choices = c("全國","直轄市","東部","北部","南部","中部","離島"),selected = '直轄市')
+
+selectInput('panel2_index',label='第一欄位:',choices = list("人口統計指標"=index,"各項人口比率"=ratio),selected = index[1] )
+
+
+```
+</div>
+
+<div class = 'panel2-output-layer'>
+    
+```{r echo=FALSE}
+select_vill_time_x = reactive(switch (input$panel2_area,
+                                      "全國" = select_vill_time %>%
+                                      filter(縣市名稱%in% taiwan )%>%group_by(縣市名稱),
+                                      "直轄市" = select_vill_time %>%
+                                      filter(縣市名稱%in% metro )%>%group_by(縣市名稱),
+                                      "東部" = select_vill_time%>%
+                                      filter(縣市名稱%in% east )%>%group_by(縣市名稱),
+                                      "北部" = select_vill_time%>%
+                                      filter(縣市名稱%in% north )%>%group_by(縣市名稱),
+                                      "南部" = select_vill_time%>%
+                                      filter(縣市名稱%in% south )%>%group_by(縣市名稱),
+                                      "中部" = select_vill_time%>%
+                                      filter(縣市名稱%in% middle )%>%group_by(縣市名稱),
+                                      "離島" = select_vill_time%>%
+                                      filter(縣市名稱%in% island )%>%group_by(縣市名稱)))
+
+
+renderPlotly({
+  switch(input$panel2_index,
+         "死亡率"=plot(select_vill_time_x(),select_vill_time_x()$year,select_vill_time_x()$死亡率,
+                    select_vill_time_x()$縣市名稱,input$panel2_index),
+         "出生率"=plot(select_vill_time_x(),select_vill_time_x()$year,select_vill_time_x()$出生率,
+                    select_vill_time_x()$縣市名稱,input$panel2_index),         
+         "性別比"=plot(select_vill_time_x(),select_vill_time_x()$year,select_vill_time_x()$性別比,
+                    select_vill_time_x()$縣市名稱,input$panel2_index),
+         "扶養比"=plot(select_vill_time_x(),select_vill_time_x()$year,select_vill_time_x()$扶養比,
+                    select_vill_time_x()$縣市名稱,input$panel2_index),
+         "老化指數"=plot(select_vill_time_x(),select_vill_time_x()$year,select_vill_time_x()$老化指數,
+                     select_vill_time_x()$縣市名稱,input$panel2_index),
+         "扶幼比"=plot(select_vill_time_x(),select_vill_time_x()$year,select_vill_time_x()$扶幼比,
+                    select_vill_time_x()$縣市名稱,input$panel2_index),
+         "扶老比"=plot(select_vill_time_x(),select_vill_time_x()$year,select_vill_time_x()$扶老比,
+                    select_vill_time_x()$縣市名稱,input$panel2_index))
+})
+
+```
+</div>
+
+
+PCA {data-icon="fa-share-alt"}
+=====================================================
+
+<div class = 'PCA-layer'>
+    
+```{r echo=FALSE}
+
+
+select_vill = reactive(switch (input$column0.5,
+  "直轄市" = select_vill_metro,
+  "東部" = select_vill_east,
+  "北部" = select_vill_north,
+  "南部" = select_vill_sourth,
+  "中部" = select_vill_middle,
+  "離島" = select_vill_island))
+
+year = reactive(switch (input$column2,
+  "104年" = "y104",
+  "105年" = "y105",
+  "106年" = "y106",
+  "107年" = "y107",
+  "108年" = "y108",
+  "109年" = "y109"))
+
+renderPlotly({
+  
+df = select_vill()[[year()]]
+df[is.na(df)] = 0.0
+
+prcomp_pca = prcomp(df[,-c(1:3)],rank. = 3)
+dimnames(prcomp_pca$x)[[2]] = c("PC1","PC2",'PC3')
+prcomp_pca_df = data.frame(prcomp_pca$x)
+prcomp_pca_df$PC1 = as.numeric(prcomp_pca_df$PC1)
+prcomp_pca_df$PC2 = as.numeric(prcomp_pca_df$PC2)
+prcomp_pca_df$PC3 = as.numeric(prcomp_pca_df$PC3)
+#### create plot
+fig = plot_ly(prcomp_pca_df,x=~PC1, y=~PC2, z=~PC3)
+#### add point
+fig = fig %>% add_markers(size = 5)
+
+#### add trace
+PCA_arrow_m = prcomp_pca[[2]]
+PCA_arrow_m
+i=1
+for (i in 1:nrow(PCA_arrow_m)){
+  scale = abs(1/max(PCA_arrow_m[i,]))
+  x = PCA_arrow_m[i,][1]*scale*5
+  y = PCA_arrow_m[i,][2]*scale*5
+  z = PCA_arrow_m[i,][3]*scale*5
+  row_name = rownames(PCA_arrow_m)[i]
+  fig = fig %>%add_trace(x = c(0,x), y = c(0,y), z = c(0,z), type = "scatter3d", mode = "arrows", 
+            name = row_name, showlegend = TRUE)
+}
+
+#### add axis name
+fig = fig %>% layout(scene = list(xaxis = list(title = 'PC1'),
+                     yaxis = list(title = 'PC2'),
+                     zaxis = list(title = 'PC3')))
+#### show plot
+fig
+})
+
+```
+</div>
